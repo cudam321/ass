@@ -1,0 +1,824 @@
+<title>Ass Shell Prototype</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@600&display=swap">
+<style>
+/* Layout: the page is the browser window. A column of tabs on the left, one inset page on the right.
+   The dot field is the only loud thing; everything around it stays quiet. */
+:root {
+  /* The whole theme is two colors and one radius. */
+  --ground: #ffffff;
+  --ink: #000000;
+  --radius: 10px;
+  /* Derived. Components use these and never a literal color. */
+  --chrome: color-mix(in srgb, var(--ink) 5%, var(--ground));
+  --page: var(--ground);
+  --raised: var(--ground);
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --active: color-mix(in srgb, var(--ink) 10%, transparent);
+  --line: color-mix(in srgb, var(--ink) 12%, transparent);
+  --muted: color-mix(in srgb, var(--ink) 60%, var(--ground));
+  --elev: 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent), 0 1px 2px -1px color-mix(in srgb, var(--ink) 8%, transparent), 0 2px 6px color-mix(in srgb, var(--ink) 5%, transparent);
+  --pop: 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent), 0 10px 28px -10px color-mix(in srgb, var(--ink) 22%, transparent), 0 28px 72px -20px color-mix(in srgb, var(--ink) 26%, transparent);
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mark: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #000000; --ink: #ffffff;
+    --chrome: var(--ground);
+    --page: color-mix(in srgb, var(--ink) 6%, var(--ground));
+    --raised: color-mix(in srgb, var(--ink) 11%, var(--ground));
+    --elev: 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent);
+    --pop: 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #000000; --ink: #ffffff;
+  --chrome: var(--ground);
+  --page: color-mix(in srgb, var(--ink) 6%, var(--ground));
+  --raised: color-mix(in srgb, var(--ink) 11%, var(--ground));
+  --elev: 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent);
+  --pop: 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent);
+  color-scheme: dark;
+}
+/* A pair chosen on the Theme page sets --ink and --ground inline; the tone follows the ground. */
+:root[data-tone="light"] {
+  --chrome: color-mix(in srgb, var(--ink) 5%, var(--ground));
+  --page: var(--ground);
+  --raised: var(--ground);
+  --elev: 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent), 0 1px 2px -1px color-mix(in srgb, var(--ink) 8%, transparent), 0 2px 6px color-mix(in srgb, var(--ink) 5%, transparent);
+  --pop: 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent), 0 10px 28px -10px color-mix(in srgb, var(--ink) 22%, transparent), 0 28px 72px -20px color-mix(in srgb, var(--ink) 26%, transparent);
+  color-scheme: light;
+}
+:root[data-tone="dark"] {
+  --chrome: var(--ground);
+  --page: color-mix(in srgb, var(--ink) 6%, var(--ground));
+  --raised: color-mix(in srgb, var(--ink) 11%, var(--ground));
+  --elev: 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent);
+  --pop: 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { margin: 0; background: var(--chrome); color: var(--ink); font: 14px/1.45 var(--font-ui); }
+button, input { font: inherit; color: inherit; }
+button { border: 0; background: none; padding: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+h1, h2, p, ol, ul, dl, dd { margin: 0; padding: 0; }
+h1, h2 { text-wrap: balance; }
+p { text-wrap: pretty; }
+svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+kbd { font: 12px var(--font-ui); color: var(--muted); }
+canvas { display: block; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Window */
+.window {
+  height: 100%;
+  display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: 12px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.side-top { height: 32px; display: flex; align-items: center; justify-content: space-between; }
+.lights { display: flex; gap: 8px; padding-left: 2px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: var(--active); }
+.nav { display: flex; gap: 8px; }
+.icon { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border-radius: calc(var(--radius) - 2px); color: var(--muted); transition: background-color 100ms ease-out, color 100ms ease-out, scale 150ms ease-out; }
+.icon::after { content: ""; position: absolute; inset: -4px; }
+.icon:hover { background: var(--hover); color: var(--ink); }
+.icon:active { scale: 0.96; }
+
+.addr { height: 40px; width: 100%; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 11px; border-radius: var(--radius); background: var(--page); box-shadow: var(--elev); text-align: left; transition: scale 150ms ease-out; }
+.addr:active { scale: 0.98; }
+.addr canvas { width: 18px; height: 18px; flex: none; }
+.addr-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+
+.tabs { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px; overflow: auto; margin-inline: -4px; padding-inline: 4px; }
+.group { padding: 12px 10px 4px; font-size: 12px; color: var(--muted); }
+.tab { height: 40px; width: 100%; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: calc(var(--radius) - 2px); color: var(--muted); font-size: 13px; text-align: left; transition: background-color 100ms ease-out, color 100ms ease-out; }
+.tab:hover { background: var(--hover); color: var(--ink); }
+.tab[aria-current="page"] { background: var(--active); color: var(--ink); font-weight: 600; }
+.tab canvas { width: 16px; height: 16px; flex: none; }
+.tab span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--ink); color: var(--ground); font-size: 11px; font-weight: 600; font-style: normal; }
+.tag[data-state="paused"] { background: none; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+
+.page { position: relative; min-width: 0; overflow: auto; background: var(--page); border-radius: var(--radius); box-shadow: var(--elev); }
+.view { min-height: 100%; }
+
+/* New tab */
+.start { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(20px, 5vh, 44px); padding: 32px 24px; }
+#hero { width: min(52vh, 70%, 460px); aspect-ratio: 1; max-width: 100%; }
+.ask { height: 44px; width: min(440px, 100%); display: flex; align-items: center; gap: 10px; padding: 0 14px 0 13px; border-radius: var(--radius); background: var(--raised); box-shadow: var(--elev); color: var(--muted); text-align: left; transition: scale 150ms ease-out, color 100ms ease-out; }
+.ask span { flex: 1; }
+.ask:hover { color: var(--ink); }
+.ask:active { scale: 0.98; }
+
+/* Settings-style pages */
+.doc { max-width: 680px; margin-inline: auto; padding: clamp(28px, 6vh, 64px) clamp(20px, 4vw, 40px) 56px; display: flex; flex-direction: column; gap: 28px; }
+.doc h1 { font-size: 28px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
+.doc h2 { font-size: 16px; line-height: 1.3; font-weight: 600; }
+.lede { margin-top: 8px; max-width: 56ch; color: var(--muted); font-size: 15px; }
+.rows { display: flex; flex-direction: column; }
+.row { min-height: 60px; display: grid; grid-template-columns: 148px minmax(0, 1fr); align-items: center; gap: 16px; padding-block: 12px; border-top: 1px solid var(--line); }
+.row:last-child { border-bottom: 1px solid var(--line); }
+.row > label, .lab { font-weight: 500; }
+.ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.dim { color: var(--muted); }
+input[type="color"] { width: 36px; height: 36px; padding: 0; border: 0; border-radius: calc(var(--radius) - 2px); background: none; cursor: pointer; box-shadow: var(--elev); overflow: hidden; }
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 0; }
+input[type="range"] { flex: 1; min-width: 120px; max-width: 280px; height: 36px; accent-color: var(--ink); }
+.btn { position: relative; height: 36px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: calc(var(--radius) - 2px); background: var(--raised); box-shadow: var(--elev); font-size: 13px; font-weight: 500; transition: scale 150ms ease-out, background-color 100ms ease-out; }
+.btn::after { content: ""; position: absolute; inset: -2px; }
+.btn:hover { background: color-mix(in srgb, var(--ink) 5%, var(--raised)); }
+.btn:active { scale: 0.96; }
+.btn.primary { background: var(--ink); color: var(--ground); box-shadow: none; font-weight: 600; }
+.btn.primary:hover { background: color-mix(in srgb, var(--ink) 86%, var(--ground)); }
+.seg { justify-self: start; display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: calc(var(--radius) + 1px); background: var(--hover); }
+.seg button { min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 10px; border-radius: calc(var(--radius) - 2px); color: var(--muted); font-size: 13px; font-weight: 500; transition: color 100ms ease-out; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--raised); box-shadow: var(--elev); color: var(--ink); }
+.seg canvas { width: 28px; height: 28px; }
+.swatch { width: 16px; height: 16px; flex: none; border-radius: 50%; box-shadow: 0 0 0 1px var(--line); }
+.pick { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.pick b { display: block; font-size: 13px; font-weight: 500; line-height: 1.35; }
+.pick output { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.pair { gap: 14px; }
+
+/* About */
+.lockup { display: flex; align-items: center; gap: clamp(20px, 4vw, 36px); flex-wrap: wrap; }
+.app-icon { width: 144px; height: 144px; }
+.doc .wordmark { font-family: var(--font-mark); font-size: 84px; line-height: 0.9; letter-spacing: -0.045em; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 24px; padding-block: 20px; border-block: 1px solid var(--line); }
+.facts dt { color: var(--muted); font-size: 13px; }
+.facts dd { margin-top: 2px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.mark { display: flex; flex-direction: column; gap: 14px; }
+.sizes { display: flex; flex-direction: column; gap: 22px; padding-top: 6px; }
+.sizes-row { display: flex; align-items: flex-end; gap: clamp(16px, 4vw, 32px); }
+.sizes figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sizes figcaption { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* A tab an agent is using */
+.agent { display: flex; padding: 14px; }
+.held { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 40px 24px; border-radius: max(calc(var(--radius) - 4px), 0px); border: 2px dotted transparent; text-align: center; transition: border-color 200ms ease-out; }
+.held[data-state="working"] { border-color: color-mix(in srgb, var(--ink) 55%, transparent); }
+#agent-orb { width: 96px; height: 96px; }
+.held h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; }
+.held .lede { margin-top: -12px; margin-inline: auto; }
+.log { width: min(420px, 100%); display: flex; flex-direction: column; text-align: left; list-style: none; counter-reset: step; }
+.log li { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); padding: 10px 2px; border-top: 1px solid var(--line); }
+.log li:last-child { border-bottom: 1px solid var(--line); }
+.log li::before { content: counter(step); color: var(--muted); font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.note { color: var(--muted); font-size: 12px; }
+
+/* Command bar */
+.scrim { position: fixed; inset: 0; z-index: 20; display: grid; justify-items: center; align-content: start; padding: 18vh 16px 16px; background: color-mix(in srgb, var(--chrome) 62%, transparent); animation: fade 100ms ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.palette { width: min(560px, 100%); padding: 6px; border-radius: calc(var(--radius) + 6px); background: var(--raised); box-shadow: var(--pop); }
+.pal-in { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--muted); }
+.pal-in input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); font-size: 15px; }
+.pal-in input::placeholder { color: var(--muted); opacity: 1; }
+#results { list-style: none; display: flex; flex-direction: column; gap: 2px; max-height: min(46vh, 322px); overflow: auto; padding-top: 6px; border-top: 1px solid var(--line); }
+#results li { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 12px; border-radius: var(--radius); cursor: pointer; }
+#results li[aria-selected="true"] { background: var(--active); }
+#results small { color: var(--muted); font-size: 12px; white-space: nowrap; }
+#results .none { color: var(--muted); cursor: default; }
+
+@media (max-width: 760px) {
+  html, body { height: auto; min-height: 100%; }
+  .window { height: auto; min-height: 100%; grid-template-columns: minmax(0, 1fr); }
+  .lights, .group { display: none; }
+  .side-top { justify-content: flex-end; }
+  .tabs { flex: none; flex-direction: row; flex-wrap: wrap; overflow: visible; }
+  .tab { width: auto; flex: 1 1 140px; }
+  .page { overflow: visible; }
+  .view { min-height: 72vh; }
+  .row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .doc .wordmark { font-size: 64px; }
+  kbd { display: none; }
+  .seg button { gap: 6px; padding: 4px 9px 4px 7px; }
+  .seg canvas { width: 22px; height: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+</style>
+
+<div class="window">
+  <aside class="side" aria-label="Sidebar">
+    <div class="side-top">
+      <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+      <div class="nav">
+        <button class="icon" id="back" type="button" aria-label="Back"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.75 3.75 5.5 8l4.25 4.25"></path></svg></button>
+        <button class="icon" id="fwd" type="button" aria-label="Forward"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.25 3.75 10.5 8l-4.25 4.25"></path></svg></button>
+        <button class="icon" id="reload" type="button" aria-label="Reload"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8a4.5 4.5 0 1 1-1.32-3.18"></path><path d="M12.75 2.75v2.5h-2.5"></path></svg></button>
+      </div>
+    </div>
+    <button class="addr" id="addr" type="button" aria-label="Open the command bar">
+      <canvas id="status" aria-hidden="true"></canvas>
+      <span class="addr-text" id="addr-text">ass://start</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="tabs" aria-label="Tabs">
+      <p class="group">Pinned</p>
+      <a class="tab" href="#theme" data-view="theme"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.25"></circle><path d="M8 2.75a5.25 5.25 0 0 0 0 10.5z" fill="currentColor" stroke="none"></path></svg><span>Theme</span></a>
+      <a class="tab" href="#about" data-view="about"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.25"></circle><path d="M8 7.6v2.9"></path><path d="M8 5.4h.01"></path></svg><span>About Ass</span></a>
+      <p class="group">Today</p>
+      <a class="tab" href="#agent" data-view="agent"><canvas id="tab-orb" aria-hidden="true"></canvas><span>Flight search</span><em class="tag" id="agent-tag">Agent</em></a>
+      <a class="tab" href="#start" data-view="start"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9"></path></svg><span>New tab</span></a>
+    </nav>
+  </aside>
+
+  <main class="page" id="page">
+    <section class="view start" id="view-start">
+      <h1 class="sr">New tab</h1>
+      <canvas id="hero" aria-hidden="true"></canvas>
+      <button class="ask" id="ask" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.25"></circle><path d="m10.25 10.25 3 3"></path></svg><span>Search or type a command</span><kbd>⌘K</kbd></button>
+    </section>
+
+    <section class="view" id="view-theme" hidden>
+      <div class="doc">
+        <header>
+          <h1>Theme</h1>
+          <p class="lede">Two colors draw the whole browser. Choose any pair.</p>
+        </header>
+        <div class="rows">
+          <div class="row"><span class="lab">Colors</span><div class="ctl pair">
+            <label class="pick"><input type="color" id="ink" value="#000000"><span><b>Ink</b><output id="ink-hex" for="ink"></output></span></label>
+            <button class="icon" id="swap" type="button" aria-label="Swap ink and ground"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 5.5h9M10 3l2.5 2.5L10 8"></path><path d="M12.5 10.5h-9M6 8l-2.5 2.5L6 13"></path></svg></button>
+            <label class="pick"><input type="color" id="ground" value="#ffffff"><span><b>Ground</b><output id="ground-hex" for="ground"></output></span></label>
+          </div></div>
+          <div class="row"><span class="lab">Contrast</span><div class="ctl"><output class="num" id="ratio"></output><span class="dim" id="verdict"></span></div></div>
+          <div class="row"><span class="lab" id="lab-presets">Presets</span><div class="ctl" role="group" aria-labelledby="lab-presets">
+            <button class="btn" type="button" data-ink="#ffffff" data-ground="#000000">Black</button>
+            <button class="btn" type="button" data-ink="#000000" data-ground="#ffffff">White</button>
+            <button class="btn" type="button" data-ink="#ffffff" data-ground="#0d2b6b">Blueprint</button>
+            <button class="btn" type="button" data-ink="#000000" data-ground="#ffe500">Signal</button>
+          </div></div>
+          <div class="row"><span class="lab" id="lab-pattern">Dot pattern</span><div class="seg" role="group" aria-labelledby="lab-pattern">
+            <button type="button" data-pattern="honeycomb"><canvas aria-hidden="true"></canvas>Honeycomb</button>
+            <button type="button" data-pattern="matrix"><canvas aria-hidden="true"></canvas>Matrix</button>
+            <button type="button" data-pattern="spiral"><canvas aria-hidden="true"></canvas>Spiral</button>
+          </div></div>
+          <div class="row"><span class="lab" id="lab-shape">Dot shape</span><div class="seg" role="group" aria-labelledby="lab-shape">
+            <button type="button" data-shape="round">Round</button>
+            <button type="button" data-shape="square">Square</button>
+          </div></div>
+          <div class="row"><label for="density">Dot density</label><div class="ctl"><input type="range" id="density" min="5" max="13" step="1" value="9"><output class="num dim" id="density-out" for="density"></output></div></div>
+          <div class="row"><label for="radius">Corners</label><div class="ctl"><input type="range" id="radius" min="0" max="16" step="1" value="10"><output class="num dim" id="radius-out" for="radius"></output></div></div>
+        </div>
+        <div><button class="btn" id="reset" type="button">Reset to black and white</button></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-about" hidden>
+      <div class="doc">
+        <div class="lockup">
+          <canvas class="app-icon" id="icon-main" role="img" aria-label="The Ass app icon: a round top over two lobes and a cleft, drawn in dots"></canvas>
+          <div>
+            <h1 class="wordmark">Ass</h1>
+            <p class="lede">A browser. Chromium engine, Rust shell, open source.</p>
+          </div>
+        </div>
+        <dl class="facts">
+          <div><dt>Version</dt><dd>0.1.0</dd></div>
+          <div><dt>Engine</dt><dd>Chromium 156.0.8078.100</dd></div>
+          <div><dt>Platform</dt><dd>macOS, Apple silicon</dd></div>
+        </dl>
+        <div class="mark">
+          <h2>The mark</h2>
+          <p class="dim">One round top, two lobes and a cleft below. At 96 pixels and up it is drawn in dots. Below that, where dots would blur, it is filled in, and the cleft is cut deeper so it still shows at 16 pixels. It needs one color and nothing else.</p>
+          <div class="sizes" id="sizes"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view agent" id="view-agent" hidden>
+      <div class="held" id="held" data-state="working">
+        <canvas id="agent-orb" aria-hidden="true"></canvas>
+        <h1 id="agent-title">An agent is using this tab</h1>
+        <p class="lede" id="agent-sub">Everything it does is logged here. You can take the tab back at any time.</p>
+        <ol class="log">
+          <li>Opened google.com/travel/flights</li>
+          <li>Entered Lisbon to Tokyo, 12 December</li>
+          <li>Reading the results</li>
+        </ol>
+        <div class="actions">
+          <button class="btn primary" id="take" type="button">Take over</button>
+          <button class="btn" id="stop" type="button">Stop the agent</button>
+        </div>
+        <p class="note">Example session, to show this state.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="palette" role="dialog" aria-modal="true" aria-label="Command bar">
+    <div class="pal-in">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.25"></circle><path d="m10.25 10.25 3 3"></path></svg>
+      <input id="q" type="text" placeholder="Search, address or command" aria-label="Search, address or command" aria-controls="results" autocomplete="off" spellcheck="false">
+    </div>
+    <ul id="results" role="listbox" aria-label="Results"></ul>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const root = document.documentElement;
+  const TAU = Math.PI * 2;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- Theme state -------------------------------------------------------
+  const DEFAULTS = { ink: null, ground: null, pattern: 'honeycomb', shape: 'round', density: 9, radius: 10 };
+  const theme = { ...DEFAULTS };
+  try { Object.assign(theme, JSON.parse(localStorage.getItem('ass-theme') || '{}')); } catch (e) { /* storage is optional */ }
+  if (!['honeycomb', 'matrix', 'spiral'].includes(theme.pattern)) theme.pattern = DEFAULTS.pattern;
+  const C = { ink: '#000000', ground: '#ffffff' };
+
+  const hex = (v) => {
+    v = v.trim();
+    if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + [...v.slice(1)].map((c) => c + c).join('');
+    return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null;
+  };
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const lum = (h) => {
+    const [r, g, b] = rgb(h).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const mix = (a, b, t) => { const A = rgb(a), B = rgb(b); return 'rgb(' + A.map((v, i) => Math.round(v * t + B[i] * (1 - t))).join(',') + ')'; };
+
+  function applyTheme() {
+    if (theme.ink && theme.ground) {
+      root.style.setProperty('--ink', theme.ink);
+      root.style.setProperty('--ground', theme.ground);
+      root.dataset.tone = lum(theme.ground) > 0.4 ? 'light' : 'dark';
+    } else {
+      root.style.removeProperty('--ink');
+      root.style.removeProperty('--ground');
+      delete root.dataset.tone;
+    }
+    root.style.setProperty('--radius', theme.radius + 'px');
+    const cs = getComputedStyle(root);
+    C.ink = hex(cs.getPropertyValue('--ink')) || '#000000';
+    C.ground = hex(cs.getPropertyValue('--ground')) || '#ffffff';
+    try { localStorage.setItem('ass-theme', JSON.stringify(theme)); } catch (e) { /* storage is optional */ }
+    syncControls();
+    drawStatic();
+    drawLive(clock);
+  }
+
+  // ---- Dots --------------------------------------------------------------
+  const norm = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+  const KEY_LIGHT = norm(-0.24, -0.28, 0.93);
+
+  // The form: a bowl on top of two lobes,
+  // 1.18 times as wide as tall. Each part is a superellipse and all three meet at the widest point, so
+  // the sides run straight from one into the next. depth is how deep the cleft is, as a share of the height.
+  const CLEFT = 0.15;
+  const forms = {};
+  function form(depth) {
+    if (forms[depth]) return forms[depth];
+    const H = HEIGHT, h = 0.4 * H, b = H - h, pt = 2.4, pb = 2.5;
+    const ratio = (1 - (1 - depth / 0.4) ** pt) ** (1 / pt), c = ratio / (1 + ratio), a = 1 - c;
+    const y0 = h - H / 2;
+    const inside = (x, y) => (y >= y0
+      ? Math.abs(x) ** pb + ((y - y0) / b) ** pb <= 1
+      : (Math.abs(Math.abs(x) - c) / a) ** pt + ((y0 - y) / h) ** pt <= 1);
+    const pw = (v, p) => Math.sign(v) * Math.abs(v) ** (2 / p);
+    const N = 160, lobe = [];
+    let outline = [];
+    for (let i = 0; i < N; i++) { const u = (i / N) * Math.PI; outline.push([pw(Math.cos(u), pb), y0 + b * pw(Math.sin(u), pb)]); }
+    const end = Math.acos(-((c / a) ** (pt / 2)));
+    for (let i = 0; i <= N; i++) { const u = (i / N) * end; lobe.push([c + a * pw(Math.cos(u), pt), y0 - h * pw(Math.sin(u), pt)]); }
+    for (const [x, y] of lobe) outline.push([-x, y]);
+    for (let i = N - 1; i > 0; i--) outline.push(lobe[i]);
+    // Built as in the sketch, lobes up, then turned over: the cleft is at the bottom.
+    outline = outline.map(([x, y]) => [x, -y]);
+    const within = (x, y) => inside(x, -y);
+    // The nearest point on the outline, and how far the innermost point is from it. Both are for shading.
+    const near = (x, y) => {
+      let best = 9, bx = 0, by = 0;
+      for (const q of outline) { const d = (q[0] - x) ** 2 + (q[1] - y) ** 2; if (d < best) { best = d; bx = q[0]; by = q[1]; } }
+      return [Math.sqrt(best), bx, by];
+    };
+    let deepest = 0;
+    for (let x = -1; x <= 1; x += 0.05) for (let y = -1; y <= 1; y += 0.05) if (within(x, y)) deepest = Math.max(deepest, near(x, y)[0]);
+    return (forms[depth] = { outline, inside: within, near, deepest, height: H });
+  }
+  const HEIGHT = 2 / 1.18;
+  // How deep to cut the cleft so it still shows when the drawing is coarse: never less than the sketch's.
+  const cleftFor = (least) => Math.min(0.3, Math.max(CLEFT, Math.round((least / HEIGHT) * 100) / 100));
+
+  // Sample points spread evenly over a disc, used to measure how much of a dot's cell the form covers.
+  const SAMPLES = Array.from({ length: 40 }, (_, i) => { const r = Math.sqrt((i + 0.5) / 40), a = i * 2.399963229728653; return [r * Math.cos(a), r * Math.sin(a)]; });
+
+  // The three grids. Each calls add(x, y) for every point of a grid whose step is 2 / n.
+  function grid(pattern, n, add) {
+    const s = 2 / n;
+    if (pattern === 'spiral') {
+      const count = Math.round(n * n * 1.1);
+      for (let i = 0; i < count; i++) {
+        const r = Math.sqrt((i + 0.5) / count) * 1.19, a = i * 2.399963229728653;
+        add(r * Math.cos(a), r * Math.sin(a));
+      }
+    } else if (pattern === 'matrix') {
+      // A column gap runs down the middle, in line with the cleft.
+      const m = n + 2;
+      for (let i = -m; i <= m; i++) for (let j = -m; j <= m; j++) add((i + 0.5) * s, (j + 0.5) * s);
+    } else {
+      // Honeycomb: every row sits half a step across from the row above. Of the grids tried,
+      // this is the one that keeps the round top round; a diagonal grid cuts it to a point.
+      const m = n + 3, rise = s * Math.sqrt(3) / 2;
+      for (let j = -m; j <= m; j++) for (let i = -m; i <= m; i++) add((i + (j & 1 ? 0.5 : 0)) * s, j * rise);
+    }
+  }
+
+  const cache = {};
+  // Dot centers on and around the form. Each dot carries the direction its patch of surface faces,
+  // as if the outline were inflated like a cushion, and how much of its cell the form covers.
+  // A dot on the edge is drawn smaller in that proportion, which is what keeps the outline true.
+  function layout(pattern, n) {
+    const key = pattern + n;
+    if (cache[key]) return cache[key];
+    const pts = [];
+    const s = 2 / n, cell = s * (pattern === 'honeycomb' ? 0.525 : 0.5642);
+    // The cleft is at least two rows of dots deep, or it would not show.
+    const F = form(cleftFor(1.75 * s));
+    const add = (x, y) => {
+      if (Math.abs(x) > 1 + s || Math.abs(y) > HEIGHT / 2 + s) return;
+      let cover = 0;
+      for (const [dx, dy] of SAMPLES) if (F.inside(x + dx * cell, y + dy * cell)) cover++;
+      cover /= SAMPLES.length;
+      if (cover < 0.2) return;
+      const [dist, bx, by] = F.near(x, y);
+      const within = F.inside(x, y), q = within ? 1 - Math.min(1, dist / F.deepest) : 1, out = (within ? -q : q) / (dist || 1);
+      pts.push([x, y, (x - bx) * out, (y - by) * out, Math.sqrt(Math.max(0, 1 - q * q)), cover]);
+    };
+    grid(pattern, n, add);
+    return (cache[key] = { pts, rmax: s * 0.5 });
+  }
+
+  // The form in dots. With lights, each dot's area follows how much light reaches it.
+  // Without (flat), every dot is full size and only the edge dots shrink.
+  function dotted(ctx, cx, cy, R, o) {
+    const { pts, rmax } = layout(o.pattern || theme.pattern, o.n);
+    const square = (o.shape || theme.shape) === 'square';
+    const lights = o.lights || [KEY_LIGHT], amb = o.amb ?? 0.3, fill = o.fill ?? 0.88;
+    ctx.beginPath();
+    for (const [x, y, nx, ny, nz, cover] of pts) {
+      let level = cover;
+      if (!o.flat) {
+        let lit = 0;
+        for (const l of lights) lit = Math.max(lit, nx * l[0] + ny * l[1] + nz * l[2]);
+        level *= amb * (0.5 + 0.5 * nz) + (1 - amb) * lit;
+      }
+      const r = rmax * R * Math.sqrt(Math.min(1, level)) * fill;
+      if (r < 0.3) continue;
+      const px = cx + x * R, py = cy + y * R;
+      if (square) ctx.rect(px - r * 0.88, py - r * 0.88, r * 1.76, r * 1.76);
+      else { ctx.moveTo(px + r, py); ctx.arc(px, py, r, 0, TAU); }
+    }
+    ctx.fill();
+  }
+
+  // The form filled in. Used under 96 pixels, where dots would blur. The cleft is cut deeper
+  // as the drawing gets smaller, so it is never less than three and a half pixels deep.
+  function solid(ctx, cx, cy, R) {
+    ctx.beginPath();
+    form(cleftFor(3.5 / R)).outline.forEach(([x, y], i) => (i ? ctx.lineTo(cx + x * R, cy + y * R) : ctx.moveTo(cx + x * R, cy + y * R)));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function fit(canvas) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const W = Math.round(w * dpr), H = Math.round(h * dpr);
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return [ctx, w, h];
+  }
+
+  // The mark is always the same drawing, whatever the theme's art uses: dots when it is at least
+  // 80 pixels wide (a 96 pixel icon), filled in below that. R is half its width.
+  const MARK = { pattern: 'honeycomb', shape: 'round', n: 11 };
+  function mark(ctx, cx, cy, R) {
+    if (R < 40) solid(ctx, cx, cy, R);
+    else dotted(ctx, cx, cy, R, { ...MARK, flat: true });
+  }
+  // A round patch of one grid, five dots across: enough to tell the patterns apart.
+  function swatch(ctx, w, pattern) {
+    const R = w / 2, r = (2 / 5) * 0.5 * R * 0.8, square = theme.shape === 'square';
+    ctx.beginPath();
+    grid(pattern, 5, (x, y) => {
+      if (Math.hypot(x, y) > 0.86) return;
+      const px = R + x * R, py = R + y * R;
+      if (square) ctx.rect(px - r * 0.88, py - r * 0.88, r * 1.76, r * 1.76);
+      else { ctx.moveTo(px + r, py); ctx.arc(px, py, r, 0, TAU); }
+    });
+    ctx.fill();
+  }
+  function appIcon(canvas, flipped) {
+    const [ctx, w] = fit(canvas);
+    if (!w) return;
+    const bg = flipped ? C.ground : C.ink, fg = flipped ? C.ink : C.ground;
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.roundRect(0, 0, w, w, w * 0.225); ctx.fill();
+    if (flipped) {
+      ctx.strokeStyle = mix(C.ink, C.ground, 0.16); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(0.5, 0.5, w - 1, w - 1, w * 0.225); ctx.stroke();
+    }
+    ctx.fillStyle = fg;
+    mark(ctx, w / 2, w / 2, w * 0.42);
+  }
+
+  // ---- Views -------------------------------------------------------------
+  const VIEWS = {
+    start: { url: 'ass://start', name: 'New tab' },
+    theme: { url: 'ass://theme', name: 'Theme' },
+    about: { url: 'ass://about', name: 'About Ass' },
+    agent: { url: 'google.com/travel/flights', name: 'Flight search' },
+  };
+  let view = 'start';
+  let agent = 'working'; // working | paused | stopped
+  let loadingUntil = 0;
+
+  function route() {
+    const id = location.hash.slice(1);
+    view = VIEWS[id] ? id : 'start';
+    for (const key of Object.keys(VIEWS)) $('#view-' + key).hidden = key !== view;
+    for (const tab of $$('.tab')) {
+      if (tab.dataset.view === view) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
+    }
+    $('#addr-text').textContent = VIEWS[view].url;
+    $('#page').scrollTop = 0;
+    drawStatic();
+    if (still) drawLive(0);
+  }
+  const go = (id) => { if (location.hash.slice(1) === id) route(); else location.hash = id; };
+
+  function setAgent(state) {
+    agent = state;
+    const held = $('#held'), tag = $('#agent-tag'), take = $('#take'), stop = $('#stop');
+    held.dataset.state = state;
+    tag.hidden = state === 'stopped';
+    tag.dataset.state = state;
+    tag.textContent = state === 'paused' ? 'Paused' : 'Agent';
+    stop.hidden = state === 'stopped';
+    if (state === 'working') {
+      $('#agent-title').textContent = 'An agent is using this tab';
+      $('#agent-sub').textContent = 'Everything it does is logged here. You can take the tab back at any time.';
+      take.textContent = 'Take over';
+    } else if (state === 'paused') {
+      $('#agent-title').textContent = 'You have this tab';
+      $('#agent-sub').textContent = 'The agent is paused. It cannot act until you hand the tab back.';
+      take.textContent = 'Hand back';
+    } else {
+      $('#agent-title').textContent = 'The agent has stopped';
+      $('#agent-sub').textContent = 'It did three things in this tab. The log stays until you close the tab.';
+      take.textContent = 'Start again';
+    }
+    if (still) drawLive(0);
+  }
+
+  // ---- Drawing -----------------------------------------------------------
+  function drawStatic() {
+    if (view === 'about') {
+      appIcon($('#icon-main'), false);
+      for (const c of $$('#sizes canvas')) appIcon(c, c.dataset.flipped === '1');
+    }
+    if (view === 'theme') {
+      for (const b of $$('[data-pattern]')) {
+        const [ctx, w] = fit($('canvas', b));
+        ctx.fillStyle = C.ink;
+        swatch(ctx, w, b.dataset.pattern);
+      }
+    }
+  }
+
+  let pointer = null;
+  let clock = 0;
+  const light = [...KEY_LIGHT];
+  // Two lights on opposite sides, turning: the sign that an agent is at work.
+  const pairOfLights = (a, lift) => [norm(Math.cos(a), Math.sin(a), lift), norm(-Math.cos(a), -Math.sin(a), lift)];
+  function drawLive(t) {
+    const now = performance.now();
+    // The small orb beside the address: idle, loading, or an agent at work.
+    {
+      const [ctx, w] = fit($('#status'));
+      ctx.fillStyle = C.ink;
+      // The small mark is always filled in. While a page loads or an agent works, it breathes.
+      const rate = still ? 0 : now < loadingUntil ? 9 : view === 'agent' && agent === 'working' ? 3 : 0;
+      ctx.globalAlpha = rate ? 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * rate)) : 1;
+      solid(ctx, w / 2, w / 2, w * 0.5);
+      ctx.globalAlpha = 1;
+    }
+    // A site with no icon of its own gets the mark. It turns while an agent works in that tab.
+    {
+      const canvas = $('#tab-orb');
+      const [ctx, w] = fit(canvas);
+      const current = canvas.parentElement.getAttribute('aria-current') === 'page';
+      ctx.fillStyle = current ? C.ink : mix(C.ink, C.ground, 0.6);
+      ctx.globalAlpha = agent === 'working' && !still ? 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * 3)) : 1;
+      solid(ctx, w / 2, w / 2, w * 0.5);
+      ctx.globalAlpha = 1;
+    }
+    if (view === 'start') {
+      const canvas = $('#hero');
+      const [ctx, w] = fit(canvas);
+      if (w) {
+        let target;
+        if (pointer && !still) {
+          const box = canvas.getBoundingClientRect();
+          let x = (pointer[0] - (box.left + box.width / 2)) / (box.width * 0.75);
+          let y = (pointer[1] - (box.top + box.height / 2)) / (box.width * 0.75);
+          const l = Math.hypot(x, y);
+          if (l > 0.92) { x *= 0.92 / l; y *= 0.92 / l; }
+          target = norm(x, y, Math.sqrt(Math.max(0.06, 1 - x * x - y * y)));
+        } else {
+          const a = still ? 0 : t * 0.22;
+          target = norm(-0.24 + Math.cos(a) * 0.2, -0.28 + Math.sin(a) * 0.14, 0.93);
+        }
+        const k = still ? 1 : 0.1;
+        for (let i = 0; i < 3; i++) light[i] += (target[i] - light[i]) * k;
+        ctx.fillStyle = C.ink;
+        dotted(ctx, w / 2, w / 2, w * 0.48, { n: theme.density * 3 - 2, lights: [norm(...light)], amb: 0.5 });
+      }
+    }
+    if (view === 'agent') {
+      const [ctx, w] = fit($('#agent-orb'));
+      if (w) {
+        ctx.fillStyle = C.ink;
+        if (agent === 'working' && !still) dotted(ctx, w / 2, w / 2, w * 0.5, { ...MARK, lights: pairOfLights(t * 1.6, 0.45), amb: 0.15 });
+        else mark(ctx, w / 2, w / 2, w * 0.5);
+      }
+    }
+  }
+
+  const t0 = performance.now();
+  function frame(now) {
+    clock = (now - t0) / 1000;
+    if (!document.hidden) drawLive(clock);
+    requestAnimationFrame(frame);
+  }
+
+  // ---- Theme page controls -----------------------------------------------
+  function syncControls() {
+    $('#ink').value = C.ink; $('#ground').value = C.ground;
+    $('#ink-hex').textContent = C.ink.toUpperCase(); $('#ground-hex').textContent = C.ground.toUpperCase();
+    const a = lum(C.ink), b = lum(C.ground);
+    const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    $('#ratio').textContent = ratio.toFixed(1) + ' to 1';
+    $('#verdict').textContent = ratio >= 4.5 ? 'Readable' : 'Too low for text. Pick colors further apart.';
+    for (const b2 of $$('[data-pattern]')) b2.setAttribute('aria-pressed', String(b2.dataset.pattern === theme.pattern));
+    for (const b2 of $$('[data-shape]')) b2.setAttribute('aria-pressed', String(b2.dataset.shape === theme.shape));
+    $('#density').value = theme.density; $('#density-out').textContent = theme.density + ' across';
+    $('#radius').value = theme.radius; $('#radius-out').textContent = theme.radius + ' px';
+  }
+  const setPair = (ink, ground) => { theme.ink = ink; theme.ground = ground; applyTheme(); };
+  $('#ink').addEventListener('input', (e) => setPair(e.target.value, C.ground));
+  $('#ground').addEventListener('input', (e) => setPair(C.ink, e.target.value));
+  $('#swap').addEventListener('click', () => setPair(C.ground, C.ink));
+  for (const b of $$('[data-ink]')) b.addEventListener('click', () => setPair(b.dataset.ink, b.dataset.ground));
+  for (const b of $$('[data-pattern]')) b.addEventListener('click', () => { theme.pattern = b.dataset.pattern; applyTheme(); });
+  for (const b of $$('[data-shape]')) b.addEventListener('click', () => { theme.shape = b.dataset.shape; applyTheme(); });
+  $('#density').addEventListener('input', (e) => { theme.density = Number(e.target.value); applyTheme(); });
+  $('#radius').addEventListener('input', (e) => { theme.radius = Number(e.target.value); applyTheme(); });
+  $('#reset').addEventListener('click', () => { Object.assign(theme, DEFAULTS); applyTheme(); });
+
+  // ---- Sidebar and agent controls ----------------------------------------
+  $('#back').addEventListener('click', () => history.back());
+  $('#fwd').addEventListener('click', () => history.forward());
+  $('#reload').addEventListener('click', () => { loadingUntil = performance.now() + 900; });
+  $('#take').addEventListener('click', () => setAgent(agent === 'working' ? 'paused' : 'working'));
+  $('#stop').addEventListener('click', () => setAgent('stopped'));
+  $('#page').addEventListener('pointermove', (e) => { pointer = [e.clientX, e.clientY]; });
+  $('#page').addEventListener('pointerleave', () => { pointer = null; });
+
+  // ---- Command bar -------------------------------------------------------
+  const COMMANDS = [
+    { label: 'New tab', hint: 'ass://start', run: () => go('start') },
+    { label: 'Theme', hint: 'ass://theme', run: () => go('theme') },
+    { label: 'About Ass', hint: 'ass://about', run: () => go('about') },
+    { label: 'Flight search', hint: 'Tab used by an agent', run: () => go('agent') },
+    { label: 'Swap ink and ground', hint: 'Theme', run: () => setPair(C.ground, C.ink) },
+    { label: 'Use black', hint: 'Theme', run: () => setPair('#ffffff', '#000000') },
+    { label: 'Use white', hint: 'Theme', run: () => setPair('#000000', '#ffffff') },
+    { label: 'Dots: honeycomb', hint: 'Theme', run: () => { theme.pattern = 'honeycomb'; applyTheme(); } },
+    { label: 'Dots: matrix', hint: 'Theme', run: () => { theme.pattern = 'matrix'; applyTheme(); } },
+    { label: 'Dots: spiral', hint: 'Theme', run: () => { theme.pattern = 'spiral'; applyTheme(); } },
+    { label: 'Reload this page', hint: 'Page', run: () => { loadingUntil = performance.now() + 900; } },
+  ];
+  const scrim = $('#scrim'), q = $('#q'), results = $('#results');
+  let shown = [], cursor = 0, opener = null;
+
+  function renderResults() {
+    const text = q.value.trim().toLowerCase();
+    shown = COMMANDS.filter((c) => !text || c.label.toLowerCase().includes(text) || c.hint.toLowerCase().includes(text));
+    cursor = Math.min(cursor, Math.max(0, shown.length - 1));
+    results.textContent = '';
+    if (!shown.length) {
+      const li = document.createElement('li');
+      li.className = 'none';
+      li.textContent = 'Nothing matches “' + q.value.trim() + '”.';
+      results.append(li);
+      return;
+    }
+    shown.forEach((c, i) => {
+      const li = document.createElement('li');
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', String(i === cursor));
+      const label = document.createElement('span'); label.textContent = c.label;
+      const hint = document.createElement('small'); hint.textContent = c.hint;
+      li.append(label, hint);
+      li.addEventListener('pointermove', () => { if (cursor !== i) { cursor = i; renderResults(); } });
+      li.addEventListener('click', () => runCommand(i));
+      results.append(li);
+    });
+    const sel = results.children[cursor];
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+  function openBar() {
+    if (!scrim.hidden) return;
+    opener = document.activeElement;
+    q.value = ''; cursor = 0;
+    scrim.hidden = false;
+    renderResults();
+    q.focus();
+  }
+  function closeBar() {
+    if (scrim.hidden) return;
+    scrim.hidden = true;
+    if (opener && opener.focus) opener.focus();
+  }
+  function runCommand(i) { const c = shown[i]; closeBar(); if (c) c.run(); }
+
+  $('#addr').addEventListener('click', openBar);
+  $('#ask').addEventListener('click', openBar);
+  scrim.addEventListener('pointerdown', (e) => { if (e.target === scrim) closeBar(); });
+  q.addEventListener('input', () => { cursor = 0; renderResults(); });
+  q.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); cursor = (cursor + 1) % Math.max(1, shown.length); renderResults(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); cursor = (cursor - 1 + shown.length) % Math.max(1, shown.length); renderResults(); }
+    else if (e.key === 'Enter') { e.preventDefault(); runCommand(cursor); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); if (scrim.hidden) openBar(); else closeBar(); }
+    else if (e.key === 'Escape') closeBar();
+  });
+
+  // ---- Boot --------------------------------------------------------------
+  const sizes = $('#sizes');
+  for (const flipped of [0, 1]) {
+    const row = document.createElement('div');
+    row.className = 'sizes-row';
+    sizes.append(row);
+    for (const px of [128, 64, 32, 16]) {
+      const fig = document.createElement('figure');
+      const c = document.createElement('canvas');
+      c.style.width = c.style.height = px + 'px';
+      c.dataset.flipped = String(flipped);
+      c.setAttribute('aria-hidden', 'true');
+      const cap = document.createElement('figcaption');
+      cap.textContent = px + ' px';
+      fig.append(c, cap);
+      row.append(fig);
+    }
+  }
+
+  for (const b of $$('[data-ink]')) {
+    const dot = document.createElement('span');
+    dot.className = 'swatch';
+    dot.style.background = 'radial-gradient(circle, ' + b.dataset.ink + ' 0 34%, ' + b.dataset.ground + ' 38%)';
+    b.prepend(dot);
+  }
+
+  const refresh = () => applyTheme();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', refresh);
+  new MutationObserver(refresh).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+  window.addEventListener('hashchange', route);
+  window.addEventListener('resize', () => { drawStatic(); if (still) drawLive(0); });
+
+  applyTheme();
+  route();
+  setAgent('working');
+  if (still) drawLive(0); else requestAnimationFrame(frame);
+})();
+</script>

@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "urlFilter": "/__dnr/static-block.", "resourceTypes": ["xmlhttprequest", "script"] }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": { "type": "redirect", "redirect": { "transform": { "path": "/__dnr/redirect-target.txt" } } },
+    "condition": { "urlFilter": "/__dnr/static-redirect-src.txt", "resourceTypes": ["xmlhttprequest"] }
+  }
+]

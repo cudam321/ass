@@ -1,0 +1,81 @@
+<!doctype html>
+<!-- The shell page: the sidebar beside the web page. Served from ass://shell/. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="light dark">
+    <title>Ass</title>
+    <link rel="stylesheet" href="shell.css">
+    <script src="shell.js" defer></script>
+  </head>
+  <body>
+    <!-- The mark at the two sizes the sidebar uses. shell.js draws each path from the mark's construction. -->
+    <svg class="defs" aria-hidden="true" focusable="false">
+      <symbol id="mark-18" viewBox="-1 -1 2 2"><path></path></symbol>
+      <symbol id="mark-16" viewBox="-1 -1 2 2"><path></path></symbol>
+    </svg>
+
+    <nav class="nav" aria-label="Page">
+      <button class="icon" id="back" type="button" aria-label="Back" disabled>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.75 3.75 5.5 8l4.25 4.25"></path></svg>
+      </button>
+      <button class="icon" id="forward" type="button" aria-label="Forward" disabled>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.25 3.75 10.5 8l-4.25 4.25"></path></svg>
+      </button>
+      <button class="icon swap" id="reload" type="button" aria-label="Reload" disabled>
+        <svg class="when-idle" viewBox="0 0 16 16" aria-hidden="true"><path d="M12.5 8a4.5 4.5 0 1 1-1.32-3.18"></path><path d="M12.75 2.75v2.5h-2.5"></path></svg>
+        <svg class="when-busy" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.75 4.75l6.5 6.5M11.25 4.75l-6.5 6.5"></path></svg>
+      </button>
+    </nav>
+
+    <div class="omni" id="omni">
+      <div class="omni-box">
+        <div class="omni-row" id="omni-row">
+          <svg class="mark" aria-hidden="true" focusable="false"><use href="#mark-18"></use></svg>
+          <span class="field">
+            <input id="address" type="text" role="combobox" aria-label="Address or search" aria-autocomplete="list"
+              aria-expanded="false" aria-controls="suggestions" aria-keyshortcuts="Meta+L" placeholder="Search or type an address"
+              autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+            <span class="shown" aria-hidden="true"><span class="scheme"></span><span class="host"><span class="host-text"></span></span><span class="rest"></span></span>
+          </span>
+          <kbd aria-hidden="true">⌘L</kbd>
+        </div>
+        <p class="error" id="address-error" role="alert" hidden></p>
+        <ul class="suggestions" id="suggestions" role="listbox" aria-label="Suggestions" hidden></ul>
+      </div>
+    </div>
+
+    <!-- The tabs and the New tab row are one list: the row sits under the last tab. -->
+    <div class="list">
+      <ul class="tabs" id="tabs" aria-label="Tabs"></ul>
+      <p class="empty" id="empty" hidden>No tabs. Type above to open one.</p>
+      <button class="newtab" id="new-tab" type="button" aria-keyshortcuts="Meta+T">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9"></path></svg>
+        <span>New tab</span>
+      </button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+
+    <template id="tab-row">
+      <li class="tab">
+        <button class="tab-main" type="button">
+          <svg class="glyph" aria-hidden="true" focusable="false"><use href="#mark-16"></use></svg>
+          <span class="title" dir="auto"></span><span class="sr busy"></span>
+        </button>
+        <button class="tab-close" type="button">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.25 5.25l5.5 5.5M10.75 5.25l-5.5 5.5"></path></svg>
+        </button>
+      </li>
+    </template>
+
+    <template id="suggestion-row">
+      <li class="suggestion" role="option" aria-selected="false">
+        <svg class="glyph for-tab" aria-hidden="true" focusable="false"><use href="#mark-16"></use></svg>
+        <svg class="glyph for-address" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9M9 4.5 12.5 8 9 11.5"></path></svg>
+        <svg class="glyph for-search" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.25"></circle><path d="m10.25 10.25 3 3"></path></svg>
+        <span class="label"><span class="verb"></span><span class="text" dir="auto"></span></span>
+        <small class="hint"></small>
+      </li>
+    </template>
+  </body>
+</html>

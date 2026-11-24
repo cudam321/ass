@@ -1,0 +1,4 @@
+# The Rust toolchain the app is built and tested with. Bumped on purpose.
+[toolchain]
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]

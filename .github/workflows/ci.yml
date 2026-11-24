@@ -1,0 +1,108 @@
+# Checks that need no Chromium download, on every push and every pull request:
+#   - the Rust code is formatted, by a pinned rustfmt;
+#   - no tracked file has whitespace errors or conflict markers;
+#   - every tracked shell, Python and JavaScript file parses, and every JSON file loads;
+#   - the window probe that the app tests run beside the app builds and passes its
+#     offline test, which starts no browser.
+# Building the app and running it are not part of this workflow yet.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The toolchain whose rustfmt judges the formatting. Bumped on purpose.
+  RUST_VERSION: "1.96.0"
+
+jobs:
+  format-and-parse:
+    name: Format and parse
+    # Apple silicon, macOS 26. Shell scripts are parsed by the /bin/sh of macOS, which runs them.
+    runs-on: macos-26
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt --no-self-update
+          rustup run "$RUST_VERSION" rustfmt --version
+
+      - name: Rust code is formatted
+        run: cargo "+$RUST_VERSION" fmt --check
+
+      - name: No whitespace errors or conflict markers
+        run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD
+
+      - name: Shell scripts parse
+        run: |
+          status=0
+          while IFS= read -r -d '' file; do
+            /bin/sh -n "$file" || { echo "::error file=$file::does not parse"; status=1; }
+          done < <(git ls-files -z -- '*.sh')
+          exit "$status"
+
+      - name: Python files compile
+        env:
+          COMPILE: |
+            import sys
+            for path in sys.argv[1:]:
+                with open(path, "rb") as source:
+                    compile(source.read(), path, "exec")
+            print(sys.version.split()[0], "compiled", len(sys.argv) - 1, "files")
+        run: |
+          # The python3 that macOS ships, which runs these scripts on a Mac, and the runner's own.
+          for python in /usr/bin/python3 python3; do
+            git ls-files -z -- '*.py' | xargs -0 "$python" -I -B -W error::SyntaxWarning -c "$COMPILE"
+          done
+
+      - name: JSON files load
+        env:
+          LOAD: |
+            import json, sys
+            for path in sys.argv[1:]:
+                with open(path, "rb") as source:
+                    json.load(source)
+            print("loaded", len(sys.argv) - 1, "files")
+        run: git ls-files -z -- '*.json' | xargs -0 python3 -I -B -c "$LOAD"
+
+      - name: JavaScript files parse
+        run: |
+          node --version
+          git ls-files -z -- '*.js' | xargs -0 -n 1 node --check
+
+  probe:
+    name: Window probe, offline test
+    runs-on: macos-26
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the probe
+        run: |
+          swiftc --version
+          swiftc -O -o "$RUNNER_TEMP/appprobe" scripts/appprobe.swift
+
+      - name: Offline test of the probe
+        run: /usr/bin/python3 -I -B scripts/appprobe_test.py "$RUNNER_TEMP/appprobe"

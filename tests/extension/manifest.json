@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Ass extension test",
+  "version": "1.0",
+  "description": "Test extension for Ass: checks which extension APIs work in the browser.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsdhlFD0kTVB2gaG/h1B0rfqRVliyHmMT3a4IDL9XaKaWnkIZvjVD4u2n4resCP+5rMRWHRtMA3A2sovaOdpOFF03D1GH7eO4Lo80i7cA39cadtq3pJJF/oxAqAjlKx3JUj1gfeE9w5AcM5rroP4PeGQwR/bHAmOd13Ze53gYmOYprKVO7U2rqA+NcMsWmStKxf1SvLrMhgVXbQsIm7LSmr5gqGF4oesMCFj/bIyZyFo9CWX0rzypPE1nmuBU1XTexa/DaYK8irr+MSCANoFwmcvsEB/osBFH5vDit2Wte5D2Q9vYwzZEzUabFG3XOFXs2vVqAwdWR27fI/si/sNP/QIDAQAB",
+  "background": { "service_worker": "sw.js" },
+  "permissions": [
+    "storage", "tabs", "scripting", "declarativeNetRequest",
+    "declarativeNetRequestFeedback", "alarms", "contextMenus", "cookies", "webNavigation"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1/*", "http://localhost/*"],
+      "all_frames": true,
+      "js": ["config.js", "lib.js", "cs_start.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://127.0.0.1/*", "http://localhost/*"],
+      "all_frames": true,
+      "js": ["config.js", "lib.js", "cs_idle.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "static_rules", "enabled": true, "path": "rules.json" }
+    ]
+  },
+  "action": { "default_popup": "popup.html", "default_title": "Ass extension test" },
+  "options_page": "options.html",
+  "commands": {
+    "ass-test-command": {
+      "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
+      "description": "Test command"
+    }
+  }
+}

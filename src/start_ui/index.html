@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- The start page: the mark in dots, and one field under it. Its own files only: nothing inline,
+     nothing from elsewhere. Built from the new-tab view of design/shell-prototype.html. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="light dark">
+    <title>New tab</title>
+    <link rel="stylesheet" href="start.css">
+    <script src="start.js" defer></script>
+  </head>
+  <body>
+    <main class="start">
+      <h1 class="sr">New tab</h1>
+      <canvas id="hero" aria-hidden="true"></canvas>
+      <form method="get" action="go" role="search">
+        <!-- A label, so a click anywhere on the field puts the caret in it without a script. -->
+        <label class="ask">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.25"></circle><path d="m10.25 10.25 3 3"></path></svg>
+          <input id="q" name="q" type="text" aria-label="Search or type an address" placeholder="Search or type an address"
+            autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+        </label>
+      </form>
+    </main>
+  </body>
+</html>

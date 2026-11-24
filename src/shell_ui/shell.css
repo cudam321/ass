@@ -1,0 +1,249 @@
+/* The shell page: the sidebar, 272 px wide, the full height of the window.
+   Ported from design/shell-prototype.html. */
+
+/* Theme. Two colors draw everything: ink and ground. Every other color is mixed
+   from them here, and the rules below use only these tokens. A theme setting can
+   later set --ink and --ground and choose the light or the dark set by its ground;
+   nothing else has to change. */
+:root {
+  --ink: #000000;
+  --ground: #ffffff;
+  --radius: 10px;
+
+  --chrome: color-mix(in srgb, var(--ink) 5%, var(--ground));
+  --page: var(--ground);
+  --raised: var(--ground);
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --active: color-mix(in srgb, var(--ink) 10%, transparent);
+  --line: color-mix(in srgb, var(--ink) 12%, transparent);
+  --muted: color-mix(in srgb, var(--ink) 60%, var(--ground));
+  --tint: color-mix(in srgb, var(--ink) 18%, transparent);
+  --scrim: color-mix(in srgb, var(--chrome) 62%, transparent);
+  --elev: 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent), 0 1px 2px -1px color-mix(in srgb, var(--ink) 8%, transparent), 0 2px 6px color-mix(in srgb, var(--ink) 5%, transparent);
+  /* The prototype's --pop without its widest layer, which this narrow view would cut off. */
+  --pop: 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent), 0 10px 28px -10px color-mix(in srgb, var(--ink) 22%, transparent);
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --swap: cubic-bezier(0.2, 0, 0, 1);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ffffff;
+    --ground: #000000;
+    --chrome: var(--ground);
+    --page: color-mix(in srgb, var(--ink) 6%, var(--ground));
+    --raised: color-mix(in srgb, var(--ink) 11%, var(--ground));
+    --elev: 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent);
+    --pop: 0 0 0 1px color-mix(in srgb, var(--ink) 15%, transparent);
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { height: 100%; -webkit-font-smoothing: antialiased; }
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 12px 16px;
+  background: var(--chrome);
+  color: var(--ink);
+  font: 13px/1.45 var(--font-ui);
+  cursor: default;
+  user-select: none;
+}
+button, input { font: inherit; color: inherit; }
+button { border: 0; background: none; padding: 0; margin: 0; cursor: default; }
+p, ul { margin: 0; padding: 0; }
+ul { list-style: none; }
+svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+kbd { font: 12px var(--font-ui); color: var(--muted); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+::selection { background: var(--tint); }
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The mark, filled in. It fades in and out while a page loads. */
+.mark, .glyph use { fill: currentColor; stroke: none; }
+.mark { width: 18px; height: 18px; }
+@keyframes breathe { 50% { opacity: 0.35; } }
+
+/* Back, forward, reload */
+.nav { height: 32px; flex: none; display: flex; justify-content: flex-end; gap: 8px; -webkit-app-region: drag; }
+.nav .icon { -webkit-app-region: no-drag; }
+.icon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted);
+  transition: background-color 100ms ease-out, color 100ms ease-out, scale 150ms ease-out;
+}
+.icon::after { content: ""; position: absolute; inset: -4px; }
+.icon:enabled:hover { background: var(--hover); color: var(--ink); }
+.icon:enabled:active { scale: 0.96; }
+.icon:disabled { opacity: 0.35; }
+/* Reload turns into stop while the page loads: both icons stay, one fades into the other. */
+.swap svg { grid-area: 1 / 1; transition: opacity 150ms var(--swap), scale 150ms var(--swap), filter 150ms var(--swap); }
+.swap .when-busy, .swap.busy .when-idle { opacity: 0; scale: 0.25; filter: blur(4px); }
+.swap.busy .when-busy { opacity: 1; scale: 1; filter: none; }
+
+/* The address field. At rest it shows the host; while editing it floats over the
+   tab list with the suggestions under it, so the list never moves. */
+.omni { position: relative; z-index: 1; height: 40px; flex: none; }
+.omni-box {
+  position: absolute;
+  inset: 0 0 auto;
+  border-radius: var(--radius);
+  background: var(--page);
+  box-shadow: var(--elev);
+  transition: background-color 100ms ease-out, box-shadow 100ms ease-out;
+}
+.omni.editing .omni-box { background: var(--raised); box-shadow: var(--pop); }
+/* While the panel is open, the prototype's scrim quiets the sidebar behind it.
+   A click on it closes the panel. */
+.omni.open::before { content: ""; position: fixed; inset: 0; background: var(--scrim); animation: fade 100ms ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.omni-row { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 11px; cursor: text; }
+.omni.loading .mark { animation: breathe 700ms ease-in-out infinite; }
+.field { position: relative; flex: 1; min-width: 0; height: 100%; }
+.field input {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--ink);
+  caret-color: var(--ink);
+  text-overflow: ellipsis;
+  user-select: text;
+}
+.field input::placeholder { color: var(--muted); opacity: 1; }
+.omni:not(.editing) .field input { color: transparent; }
+.omni.editing .shown, .omni.editing kbd { display: none; }
+/* Host in ink, the rest dimmed. A host too long to fit is cut at its start, so the
+   part that names the site, at its end, is the part that stays visible. */
+.shown { position: absolute; inset: 0; display: flex; align-items: center; white-space: nowrap; overflow: hidden; pointer-events: none; }
+.scheme, .rest { color: var(--muted); }
+.scheme { flex: none; }
+.host { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; direction: rtl; }
+.host-text { direction: ltr; unicode-bidi: isolate; }
+/* The path gets only the room the host leaves, so it never squeezes the host. */
+.rest { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.error { padding: 0 12px 10px 39px; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; text-wrap: pretty; user-select: text; }
+.suggestions { padding: 4px; border-top: 1px solid var(--line); }
+.suggestion {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 7px;
+  border-radius: calc(var(--radius) - 4px);
+  color: var(--muted);
+}
+/* Hover is the pointer's alone; the highlight (what Enter runs) follows the keyboard. */
+.suggestion:hover { background: var(--hover); }
+.suggestion[aria-selected="true"] { background: var(--active); color: var(--ink); }
+/* A tab that closed after the user typed: its row keeps its place and does nothing. */
+.suggestion[aria-disabled="true"] { opacity: 0.35; }
+.suggestion .glyph { display: none; }
+.suggestion[data-kind="tab"] .for-tab, .suggestion[data-kind="address"] .for-address, .suggestion[data-kind="search"] .for-search { display: block; }
+.label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.verb:not(:empty) { margin-right: 0.3em; }
+.text { color: var(--ink); }
+.hint { flex: none; font-size: 12px; color: var(--muted); }
+
+/* Tabs */
+.list { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; }
+.tabs {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.tab {
+  position: relative;
+  height: 40px;
+  flex: none;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted);
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+}
+.tab:hover { background: var(--hover); color: var(--ink); }
+.tab.active { background: var(--active); color: var(--ink); }
+.tab-main {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border-radius: inherit;
+  text-align: left;
+}
+.tab.active .tab-main { font-weight: 600; }
+.tab-main:focus-visible, .newtab:focus-visible { outline-offset: -2px; }
+.title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab.loading .glyph { animation: breathe 700ms ease-in-out infinite; }
+/* The close button shows on hover and on keyboard focus; the title makes room for it. */
+.tab-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--radius) - 4px);
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 100ms ease-out, background-color 100ms ease-out, color 100ms ease-out, scale 150ms ease-out;
+}
+.tab-close::after { content: ""; position: absolute; inset: -6px; }
+/* Keyboard focus on either button shows the close button; a mouse click does not. */
+.tab:hover .tab-close, .tab-main:focus-visible + .tab-close, .tab-close:focus-visible { opacity: 1; }
+.tab:hover .tab-main, .tab:focus-within .tab-main { padding-right: 40px; }
+.tab-close:hover { background: var(--hover); color: var(--ink); }
+.tab-close:active { scale: 0.96; }
+
+.empty { padding: 10px; color: var(--muted); }
+
+.newtab {
+  height: 40px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted);
+  text-align: left;
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+}
+.newtab span { flex: 1; }
+.newtab:hover { background: var(--hover); color: var(--ink); }
+.newtab.on { background: var(--active); color: var(--ink); font-weight: 600; }
+
+.status { margin-top: auto; padding: 0 10px; font-size: 12px; color: var(--muted); }
+.status:empty { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; }
+  /* Without motion, a loading mark is shown dimmed instead. */
+  .omni.loading .mark, .tab.loading .glyph { opacity: 0.45; }
+}

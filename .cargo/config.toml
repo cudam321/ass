@@ -1,0 +1,3 @@
+[env]
+# One shared copy of the CEF binaries, downloaded on first build.
+CEF_PATH = { value = ".cef", relative = true }
